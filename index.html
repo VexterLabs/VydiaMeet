@@ -1,174 +1,45 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width">
-        <title>Peer-to-Peer Cue System --- Reciever</title>
-        <link rel="stylesheet" href="https://raw.githubusercontent.com/leomirandadev/video-call-webrtc/master/src/style.css">
-    </head>
-    <body>
-        <div class="container">
+<head>
+    <meta charset="utf-8">
+    <title>Prayer Room</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
 
-            <div class="flex-box">
-                <div id="receiver-id" style="font-weight: bold;" title="Copy this ID to the input on send.html.">ID:</div>
-                <div id="status" class="status"></div>
-                <div class="videos">
-                    <div class="remote">
-                        <video id="removeVideoStream" autoplay ></video>
-                    </div>
-                    <div class="local">
-                        <video id="localVideoStream" autoplay muted></video>
-                    </div>
-                </div>
-            </div>
+  <script src='https://meet.jit.si/external_api.js'></script>
+</head>
+<body>
+    <div id="hes">
+<h1>Back benchers video app</br><b> Truelly thrissurian</b></h1>
+<img src="unlesadh.jpg">
+    </div>
 
-            <div class="flex-box">
-                <div class="form">
-                    <h3>CHAT REAL TIME</h3>
-                    <div class="message" id="message"></div>
-                    <textarea id="sendMessageBox" placeholder="Enter a message..." ></textarea>
-                    <button type="button" id="sendButton">Send</button>
-                </div>
-            </div>
-        </div>
+<button id="start" type="button">Start</button>
+<div id="jitsi-container">
+</div>
 
-            
+<script>
+var button = document.querySelector('#start');
+var container = document.querySelector('#jitsi-container');
+var api = null;
 
-        <script src="https://raw.githubusercontent.com/leomirandadev/video-call-webrtc/master/src/peerjs.min.js"></script>
-        <script src="https://raw.githubusercontent.com/leomirandadev/video-call-webrtc/master/src/functions.js"></script>
-        <script type="text/javascript">
-            (function () {
+button.addEventListener('click', () => {
+    var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    var stringLength = 30;
 
-                var lastPeerId = null;
-                var peer = null; // Own peer object
-                var peerId = null;
-                var conn = null;
-                const urlCall = "https://vydia-meet.netlify.app/send.html?id=";
+    function pickRandom() {
+    return possible[Math.floor(Math.random() * possible.length)];
+    }
 
-                var removeVideoStream = document.getElementById("removeVideoStream");
-                var localVideoStream = document.getElementById("localVideoStream");
-                var recvId = document.getElementById("receiver-id");
-                var status = document.getElementById("status");
-                var message = document.getElementById("message");
+var randomString = Array.apply(null, Array(stringLength)).map(pickRandom).join('');
 
-                var sendMessageBox = document.getElementById("sendMessageBox");
-                var sendButton = document.getElementById("sendButton");
+    var domain = "meet.jit.si";
+    var options = {
+        "roomName": randomString,
+        "parentNode": container,
+        "width": 600,
+        "height": 600,
+    };
+    api = new JitsiMeetExternalAPI(domain, options);
+});
 
-                /**
-                 * Create the Peer object for our end of the connection.
-                 *
-                 * Sets up callbacks that handle any events related to our
-                 * peer object.
-                 */
-                 function initialize() {
-                    // liga camera
-                    createStremLocalVideo(localVideoStream)
-
-                    // Create own peer object with connection to shared PeerJS server
-                    peer = new Peer(null, {
-                        debug: 2
-                    });
-
-                    peer.on('open', function (id) {
-                        // Workaround for peer.reconnect deleting previous id
-                        if (peer.id === null) {
-                            console.log('Received null id from peer open');
-                            peer.id = lastPeerId;
-                        } else {
-                            lastPeerId = peer.id;
-                        }
-
-                        recvId.innerHTML = "Send this link to your partner: <br>";
-                        recvId.innerHTML += "<a target='_blank' href='" + urlCall + peer.id + "'>" + urlCall + peer.id + "</a>";
-                        status.innerHTML = "Awaiting connection...";
-                    });
-
-                    peer.on('connection', function (c) {
-                        // Allow only a single connection
-                        if (conn) {
-                            c.on('open', function() {
-                                c.send("Already connected to another client");
-                                setTimeout(function() { c.close(); }, 500);
-                            });
-                            return;
-                        }
-
-                        conn = c;
-                        console.log("Connected to: " + conn.peer);
-                        status.innerHTML = "Connected"
-                        ready();
-                    });
-
-                    peer.on('disconnected', function () {
-                        status.innerHTML = "Connection lost. Please reconnect";
-                        console.log('Connection lost. Please reconnect');
-
-                        // Workaround for peer.reconnect deleting previous id
-                        peer.id = lastPeerId;
-                        peer._lastServerId = lastPeerId;
-                        peer.reconnect();
-                    });
-
-                    peer.on('close', function() {
-                        conn = null;
-                        status.innerHTML = "Connection destroyed. Please refresh";
-                        console.log('Connection destroyed');
-                    });
-
-                    peer.on('error', function (err) {
-                        console.log(err);
-                        alert('' + err);
-                    });
-                    
-                    peer.on('call', function(call) {
-                        call.answer(localVideoStream.srcObject);
-                        
-                        call.on('stream', function(remoteStream) {
-                            removeVideoStream.srcObject = remoteStream;
-                        });
-                    });
-
-                };
-
-                /**
-                 * Triggered once a connection has been achieved.
-                 * Defines callbacks to handle incoming data and connection events.
-                 */
-                function ready() {
-
-                    conn.on('data', function (data) {
-                        console.log("Data recieved");
-                        addMessage("<span class=\"peerMsg\">Friend: </span>" + data);
-
-                    });
-
-                    conn.on('close', function () {
-                        status.innerHTML = "Connection reset<br>Awaiting connection...";
-                        conn = null;
-                        start(true);
-                    });
-
-                }
-
-                function addMessage(msg) {
-                    message.innerHTML = formatMsg(msg, message.innerHTML)
-                };
-
-                // Send message
-                sendButton.onclick = function () {
-                    if (conn && conn.open) {
-                        var msg = sendMessageBox.value;
-                        sendMessageBox.value = "";
-                        conn.send(msg);
-                        console.log("Sent: " + msg)
-                        addMessage("<span class=\"selfMsg\">You: </span>" + msg);
-                    } else {
-                        console.log('Connection is closed');
-                    }
-                };
-
-                initialize();
-            })();
-        </script>
-    </body>
+</script>
+</body>
 </html>
